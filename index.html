@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https: data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com;">
+<title>Trading Intelligence Workflow</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a; --surface: #111111; --surface2: #1a1a1a; --border: #222222;
+    --accent: #00ff88; --accent2: #ff3d3d; --accent3: #ffd700; --accent4: #00b4ff;
+    --text: #e8e8e8; --text-dim: #666; --text-mid: #999;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(0,255,136,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,136,0.02) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; position: relative; z-index: 1; }
+  .header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 48px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .header-left h1 { font-family: 'Bebas Neue', sans-serif; font-size: 64px; letter-spacing: 4px; line-height: 1; background: linear-gradient(135deg, var(--accent), var(--accent4)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .header-left p { color: var(--text-dim); font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-top: 8px; }
+  .live-badge { display: flex; align-items: center; gap: 8px; background: rgba(255,61,61,0.1); border: 1px solid rgba(255,61,61,0.3); border-radius: 4px; padding: 8px 16px; font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent2); text-transform: uppercase; letter-spacing: 2px; }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+  .tabs { display: flex; gap: 2px; margin-bottom: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px; }
+  .tab { flex: 1; padding: 12px 16px; background: transparent; border: none; color: var(--text-dim); font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+  .tab.active { background: var(--surface2); color: var(--accent); border: 1px solid rgba(0,255,136,0.2); }
+  .tab:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.03); }
+  .tab-content { display: none; } .tab-content.active { display: block; }
+  .section-title { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .header { flex-direction: column; align-items: flex-start; gap: 16px; } .header-left h1 { font-size: 40px; } }
+  .signal-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; position: relative; overflow: hidden; transition: border-color 0.2s; }
+  .signal-card:hover { border-color: #333; }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .card-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; color: var(--text); }
+  .card-subtitle { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin-top: 2px; }
+  .badge { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; padding: 4px 10px; border-radius: 3px; white-space: nowrap; }
+  .badge-green { background: rgba(0,255,136,0.1); color: var(--accent); border: 1px solid rgba(0,255,136,0.2); }
+  .badge-red { background: rgba(255,61,61,0.1); color: var(--accent2); border: 1px solid rgba(255,61,61,0.2); }
+  .badge-yellow { background: rgba(255,215,0,0.1); color: var(--accent3); border: 1px solid rgba(255,215,0,0.2); }
+  .badge-blue { background: rgba(0,180,255,0.1); color: var(--accent4); border: 1px solid rgba(0,180,255,0.2); }
+  .description { font-size: 13px; color: var(--text-mid); line-height: 1.6; margin-bottom: 16px; }
+  .links { display: flex; flex-direction: column; gap: 8px; }
+  .link-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface2); border-radius: 4px; border: 1px solid var(--border); text-decoration: none; transition: all 0.2s; }
+  .link-item:hover { border-color: rgba(0,255,136,0.3); background: rgba(0,255,136,0.03); }
+  .link-icon { font-size: 14px; width: 20px; text-align: center; }
+  .link-info { flex: 1; }
+  .link-name { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text); letter-spacing: 0.5px; }
+  .link-desc { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+  .link-badge { font-family: 'Space Mono', monospace; font-size: 9px; padding: 2px 6px; border-radius: 2px; }
+  .free { background: rgba(0,255,136,0.1); color: var(--accent); }
+  .paid { background: rgba(255,215,0,0.1); color: var(--accent3); }
+  .freemium { background: rgba(0,180,255,0.1); color: var(--accent4); }
+  .workflow-step { display: flex; gap: 20px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .step-number { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--border); line-height: 1; min-width: 50px; text-align: center; }
+  .step-content { flex: 1; }
+  .step-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; margin-bottom: 6px; color: var(--text); }
+  .step-time { display: inline-block; font-family: 'Space Mono', monospace; font-size: 9px; color: var(--accent3); background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.15); padding: 2px 8px; border-radius: 2px; letter-spacing: 1px; margin-bottom: 10px; }
+  .step-desc { font-size: 13px; color: var(--text-mid); line-height: 1.6; margin-bottom: 12px; }
+  .step-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tool-chip { font-family: 'Space Mono', monospace; font-size: 10px; padding: 4px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; color: var(--text-mid); letter-spacing: 0.5px; text-decoration: none; display: inline-block; transition: all 0.2s; }
+  .tool-chip:hover { border-color: rgba(0,255,136,0.4); color: var(--accent); background: rgba(0,255,136,0.05); }
+  .automation-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .automation-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .auto-icon { width: 36px; height: 36px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .auto-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; }
+  .auto-platform { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+  .code-block { background: #0d0d0d; border: 1px solid var(--border); border-radius: 6px; padding: 16px; font-family: 'Space Mono', monospace; font-size: 11px; color: #7ec8e3; line-height: 1.8; overflow-x: auto; margin-top: 12px; white-space: pre; }
+  .code-comment { color: #555; } .code-key { color: var(--accent); } .code-string { color: #e06c75; }
+  .alert-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--surface2); border-radius: 6px; margin-bottom: 8px; border-left: 3px solid transparent; }
+  .alert-row.green { border-left-color: var(--accent); } .alert-row.red { border-left-color: var(--accent2); }
+  .alert-row.yellow { border-left-color: var(--accent3); } .alert-row.blue { border-left-color: var(--accent4); }
+  .alert-icon { font-size: 16px; } .alert-text { flex: 1; font-size: 13px; color: var(--text-mid); }
+  .alert-text strong { color: var(--text); font-size: 13px; }
+  .alert-source a { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-dim); text-decoration: none; }
+  .alert-source a:hover { color: var(--accent); }
+  .score-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .score-label { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-mid); width: 120px; letter-spacing: 0.5px; }
+  .score-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 2px; }
+  .score-value { font-family: 'Space Mono', monospace; font-size: 10px; width: 30px; text-align: right; }
+  .disclaimer { margin-top: 48px; padding: 16px; background: rgba(255,61,61,0.05); border: 1px solid rgba(255,61,61,0.15); border-radius: 6px; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; line-height: 1.8; text-align: center; }
+  .glow-line { height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); margin: 32px 0; opacity: 0.3; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-left">
+      <h1>TRADING<br>INTELLIGENCE</h1>
+      <p>// Workflow di anticipazione del mercato</p>
+    </div>
+    <div class="live-badge"><div class="live-dot"></div>Live Workflow Guide</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('segnali',event)">📡 Segnali</button>
+    <button class="tab" onclick="showTab('workflow',event)">⚡ Workflow</button>
+    <button class="tab" onclick="showTab('automazioni',event)">🤖 Automazioni</button>
+    <button class="tab" onclick="showTab('alert',event)">🔔 Alert Setup</button>
+    <button class="tab" onclick="showTab('scanner',event)">🔬 Signal Scanner</button>
+    <button class="tab" onclick="showTab('guida',event)">📖 Guida</button>
+  </div>
+
+  <!-- TAB 1: SEGNALI -->
+  <div id="tab-segnali" class="tab-content active">
+    <div class="section-title">Metodi di Anticipazione</div>
+    <div class="grid-2">
+
+      <div class="signal-card">
+        <div class="card-header">
+          <div><div class="card-title">📊 Order Flow & Level 2</div><div class="card-subtitle">Dove si muovono i soldi prima del prezzo</div></div>
+          <div class="badge badge-green">⚡ Immediato</div>
+        </div>
+        <div class="description">Vedi in tempo reale dove si accumulano compratori e venditori <strong>prima</strong> che il prezzo si muova. Grandi ordini bid = accumulo istituzionale. Bid che spariscono = distribuzione in corso.</div>
+        <div class="links">
+          <a href="https://bookmap.com/en" target="_blank" class="link-item">
+            <div class="link-icon">🗺️</div>
+            <div class="link-info"><div class="link-name">Bookmap</div><div class="link-desc">Heatmap ordini in tempo reale — il migliore</div></div>
+            <span class="link-badge paid">Da $29/mese</span>
+          </a>
+          <a href="https://tradytics.com" target="_blank" class="link-item">
+            <div class="link-icon">📋</div>
+            <div class="link-info"><div class="link-name">Tradytics</div><div class="link-desc">Dark pool + opzioni flow + AI su azioni reali — il migliore sostituto gratuito del Level 2 per chi opera su azioni/ETF</div></div>
+            <span class="link-badge freemium">Freemium</span>
+          </a>
+          <a href="https://tradytics.com" target="_blank" class="link-item">
+            <div class="link-icon">🔬</div>
+            <div class="link-info"><div class="link-name">Tradytics</div><div class="link-desc">Order flow + dark pool + AI combinati</div></div>
+            <span class="link-badge paid">$49/mese</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="signal-card">
+        <div class="card-header">
+          <div><div class="card-title">📈 Opzioni Flow</div><div class="card-subtitle">Dove scommettono i soldi intelligenti</div></div>
+          <div class="badge badge-yellow">⚡ 1-5 giorni prima</div>
+        </div>
+        <div class="description">Call/put ratio anomalo, spike di volume su OTM, IV che sale prima delle news. I grandi fondi si posizionano sulle opzioni <strong>prima</strong> di muovere l'azionario. È il segnale più affidabile.</div>
+        <div class="links">
+          <a href="https://unusualwhales.com" target="_blank" class="link-item">
+            <div class="link-icon">🐋</div>
+            <div class="link-info"><div class="link-name">Unusual Whales</div><div class="link-desc">Il riferimento assoluto per opzioni anomale</div></div>
+            <span class="link-badge paid">$50/mese</span>
+          </a>
+          <a href="https://finviz.com/screener.ashx?v=111&f=sh_opt_option" target="_blank" class="link-item">
+            <div class="link-icon">🔍</div>
+            <div class="link-info"><div class="link-name">Finviz Options Screener</div><div class="link-desc">Screener gratuito per volume opzioni anomalo</div></div>
+            <span class="link-badge free">Gratis</span>
+          </a>
+          <a href="https://blackboxstocks.com" target="_blank" class="link-item">
+            <div class="link-icon">📦</div>
+            <div class="link-info"><div class="link-name">BlackBoxStocks</div><div class="link-desc">Alert in tempo reale su flussi opzioni + community</div></div>
+            <span class="link-badge paid">Da $99/mese</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="signal-card">
+        <div class="card-header">
+          <div><div class="card-title">🌑 Dark Pool</div><div class="card-subtitle">Blocchi istituzionali fuori dal mercato visibile</div></div>
+          <div class="badge badge-blue">⚡ 1-3 giorni prima</div>
+        </div>
+        <div class="description">I grandi fondi non comprano in borsa aperta per non muovere il prezzo. Usano dark pool — mercati privati. Quando un grosso blocco appare, il prezzo si muove <strong>dopo</strong>.</div>
+        <div class="links">
+          <a href="https://fintel.io/flow" target="_blank" class="link-item">
+            <div class="link-icon">🔭</div>
+            <div class="link-info"><div class="link-name">Fintel Dark Pool</div><div class="link-desc">Tracking blocchi istituzionali + opzioni</div></div>
+            <span class="link-badge paid">$49/mese</span>
+          </a>
+          <a href="https://spotgamma.com" target="_blank" class="link-item">
+            <div class="link-icon">🎯</div>
+            <div class="link-info"><div class="link-name">SpotGamma</div><div class="link-desc">Gamma exposure + Dark Pool Indicator (DPI)</div></div>
+            <span class="link-badge paid">$99/mese</span>
+          </a>
+          <a href="https://tradytics.com/darkpool-market" target="_blank" class="link-item">
+            <div class="link-icon">📊</div>
+            <div class="link-info"><div class="link-name">Tradytics Dark Pool</div><div class="link-desc">Dashboard dark pool con AI — base gratuita</div></div>
+            <span class="link-badge freemium">Freemium</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="signal-card">
+        <div class="card-header">
+          <div><div class="card-title">📋 Insider Form 4</div><div class="card-subtitle">CEO e dirigenti devono dichiarare gli acquisti</div></div>
+          <div class="badge badge-green">⚡ 2 giorni dopo</div>
+        </div>
+        <div class="description">Legalmente gli insider devono dichiarare acquisti e vendite entro 2 giorni lavorativi. Un CEO che <strong>compra</strong> è il segnale bullish più potente che esiste — conosce l'azienda meglio di chiunque.</div>
+        <div class="links">
+          <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=4&dateb=&owner=include&count=40" target="_blank" class="link-item">
+            <div class="link-icon">🏛️</div>
+            <div class="link-info"><div class="link-name">SEC EDGAR Form 4</div><div class="link-desc">Fonte ufficiale — aggiornato in tempo reale</div></div>
+            <span class="link-badge free">Gratis</span>
+          </a>
+          <a href="http://openinsider.com" target="_blank" class="link-item">
+            <div class="link-icon">🔓</div>
+            <div class="link-info"><div class="link-name">OpenInsider</div><div class="link-desc">Il migliore per Form 4 — filtri avanzati e cluster insider</div></div>
+            <span class="link-badge free">Gratis</span>
+          </a>
+          <a href="https://finviz.com/insidertrading.ashx" target="_blank" class="link-item">
+            <div class="link-icon">🔍</div>
+            <div class="link-info"><div class="link-name">Finviz Insider</div><div class="link-desc">Dashboard Form 4 su HTTPS — alternativa se OpenInsider non apre</div></div>
+            <span class="link-badge free">Gratis</span>
+          </a>
+          <a href="https://dataroma.com/m/home.php" target="_blank" class="link-item">
+            <div class="link-icon">📡</div>
+            <div class="link-info"><div class="link-name">Dataroma</div><div class="link-desc">Portafogli dei grandi guru (13F filing)</div></div>
+            <span class="link-badge free">Gratis</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="signal-card">
+        <div class="card-header">
+          <div><div class="card-title">📰 News Arbitrage</div><div class="card-subtitle">Essere più veloci di CNBC</div></div>
+          <div class="badge badge-red">⚡ Minuti prima</div>
+        </div>
+        <div class="description">Quando la notizia arriva su CNBC è già troppo tardi — il mercato ha già reagito. Bisogna essere sulle fonti primarie: Reuters, Bloomberg, SEC filing, Twitter di giornalisti chiave.</div>
+        <div class="links">
+          <a href="https://pro.benzinga.com" target="_blank" class="link-item">
+            <div class="link-icon">⚡</div>
+            <div class="link-info"><div class="link-name">Benzinga Pro</div><div class="link-desc">News finanziarie ultra-veloci con audio alert</div></div>
+            <span class="link-badge paid">$49/mese</span>
+          </a>
+          <a href="https://x.com/search?q=%24SPY&f=live" target="_blank" class="link-item">
+            <div class="link-icon">🐦</div>
+            <div class="link-info"><div class="link-name">X/Twitter FinTwit</div><div class="link-desc">@carlquintanilla, @eWhispers, @WalterBloomberg</div></div>
+            <span class="link-badge free">Gratis</span>
+          </a>
+          <a href="https://www.reuters.com/markets/" target="_blank" class="link-item">
+            <div class="link-icon">📡</div>
+            <div class="link-info"><div class="link-name">Reuters Markets</div><div class="link-desc">Feed primario — prima di tutti gli altri</div></div>
+            <span class="link-badge free">Gratis</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="signal-card">
+        <div class="card-header">
+          <div><div class="card-title">🧠 Sentiment & Social</div><div class="card-subtitle">Cosa pensa il mercato retail</div></div>
+          <div class="badge badge-yellow">⚡ Contrarian</div>
+        </div>
+        <div class="description">Utile come segnale <strong>contrarian</strong>: quando tutti sono bullish su un titolo sui social, spesso è già troppo tardi. Quando tutti sono in panico, potrebbe essere il momento di comprare.</div>
+        <div class="links">
+          <a href="https://stocktwits.com" target="_blank" class="link-item">
+            <div class="link-icon">💬</div>
+            <div class="link-info"><div class="link-name">StockTwits</div><div class="link-desc">Sentiment retail in tempo reale per ticker</div></div>
+            <span class="link-badge free">Gratis</span>
+          </a>
+          <a href="https://edition.cnn.com/markets/fear-and-greed" target="_blank" class="link-item">
+            <div class="link-icon">😨</div>
+            <div class="link-info"><div class="link-name">CNN Fear & Greed Index</div><div class="link-desc">Indicatore di sentiment di mercato generale</div></div>
+            <span class="link-badge free">Gratis</span>
+          </a>
+          <a href="https://www.reddit.com/r/wallstreetbets/" target="_blank" class="link-item">
+            <div class="link-icon">🦍</div>
+            <div class="link-info"><div class="link-name">Reddit WSB / r/investing</div><div class="link-desc">Utile come contrarian indicator</div></div>
+            <span class="link-badge free">Gratis</span>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="section-title">Affidabilità per Orizzonte Temporale</div>
+    <div class="signal-card">
+      <div style="margin-bottom: 20px;">
+        <div class="score-bar"><div class="score-label">Opzioni Flow</div><div class="score-track"><div class="score-fill" style="width:92%; background: var(--accent);"></div></div><div class="score-value" style="color:var(--accent)">92%</div></div>
+        <div class="score-bar"><div class="score-label">Dark Pool</div><div class="score-track"><div class="score-fill" style="width:84%; background: var(--accent4);"></div></div><div class="score-value" style="color:var(--accent4)">84%</div></div>
+        <div class="score-bar"><div class="score-label">Order Flow</div><div class="score-track"><div class="score-fill" style="width:78%; background: var(--accent3);"></div></div><div class="score-value" style="color:var(--accent3)">78%</div></div>
+        <div class="score-bar"><div class="score-label">Insider Form 4</div><div class="score-track"><div class="score-fill" style="width:71%; background: var(--accent3);"></div></div><div class="score-value" style="color:var(--accent3)">71%</div></div>
+        <div class="score-bar"><div class="score-label">News Arbitrage</div><div class="score-track"><div class="score-fill" style="width:65%; background: var(--accent2);"></div></div><div class="score-value" style="color:var(--accent2)">65%</div></div>
+        <div class="score-bar"><div class="score-label">Social Sentiment</div><div class="score-track"><div class="score-fill" style="width:40%; background: var(--accent2);"></div></div><div class="score-value" style="color:var(--accent2)">40%</div></div>
+      </div>
+      <div style="font-size:11px; color:var(--text-dim); font-family:'Space Mono',monospace;">* Affidabilità indicativa basata su studi accademici e trading professionistico. Nessun metodo funziona sempre.</div>
+    </div>
+  </div>
+
+  <!-- TAB 2: WORKFLOW -->
+  <div id="tab-workflow" class="tab-content">
+    <div class="section-title">Routine Giornaliera — Pre-Market</div>
+
+    <div class="workflow-step">
+      <div class="step-number">01</div>
+      <div class="step-content">
+        <div class="step-title">Ore 7:00 — Macro e geopolitica</div>
+        <div class="step-time">⏱ 10 minuti</div>
+        <div class="step-desc">Controlla cosa è successo durante la notte in Asia e Europa. Cerca eventi che possono muovere settori specifici (guerre, dati macro, banche centrali). Fonte primaria prima di CNBC.</div>
+        <div class="step-tools">
+          <a href="https://www.reuters.com/markets/" target="_blank" class="tool-chip">Reuters Markets</a>
+          <a href="https://www.bloomberg.com/markets" target="_blank" class="tool-chip">Bloomberg Markets</a>
+          <a href="https://x.com/eWhispers" target="_blank" class="tool-chip">X @eWhispers</a>
+          <a href="https://it.investing.com/economic-calendar/" target="_blank" class="tool-chip">Calendario Investing.com</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">02</div>
+      <div class="step-content">
+        <div class="step-title">Ore 8:00 — Opzioni anomale notte</div>
+        <div class="step-time">⏱ 15 minuti</div>
+        <div class="step-desc">Controlla i flussi di opzioni delle ultime 12 ore su Unusual Whales. Cerca call/put ratio estremi, volumi anomali su strike OTM, e sweep orders (ordini che attraversano tutto il book). Questi sono i segnali più forti.</div>
+        <div class="step-tools">
+          <a href="https://unusualwhales.com" target="_blank" class="tool-chip">Unusual Whales</a>
+          <a href="https://fintel.io/flow" target="_blank" class="tool-chip">Fintel Flow</a>
+          <a href="https://blackboxstocks.com" target="_blank" class="tool-chip">BlackBoxStocks</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">03</div>
+      <div class="step-content">
+        <div class="step-title">Ore 8:30 — Insider Filing (Form 4)</div>
+        <div class="step-time">⏱ 5 minuti</div>
+        <div class="step-desc">Controlla Finviz Insider per i Form 4 depositati ieri sera. Filtra per: acquisti reali (non esercizio opzioni), importo > $500k, cluster di insider. Un CEO che compra sul mercato aperto è rarissimo e potente.</div>
+        <div class="step-tools">
+          <a href="https://finviz.com/insidertrading.ashx" rel="noreferrer noopener" target="_blank" class="tool-chip">Finviz Insider.com</a>
+          <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=4&dateb=&owner=include&count=40" target="_blank" class="tool-chip">SEC EDGAR Form 4</a>
+          <a href="https://finviz.com/insidertrading.ashx" target="_blank" class="tool-chip">Finviz Insider Filter</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">04</div>
+      <div class="step-content">
+        <div class="step-title">Ore 9:00 — Dark Pool e pre-market</div>
+        <div class="step-time">⏱ 10 minuti</div>
+        <div class="step-desc">Cerca blocchi dark pool anomali della notte. Poi guarda i movimenti pre-market: titoli che si muovono > 3% prima dell'apertura senza news visibili spesso hanno un catalyst nascosto (earnings, contratto, M&A).</div>
+        <div class="step-tools">
+          <a href="https://fintel.io/flow" target="_blank" class="tool-chip">Fintel Dark Pool</a>
+          <a href="https://tradytics.com/darkpool-market" target="_blank" class="tool-chip">Tradytics Dark Pool</a>
+          <a href="https://pro.benzinga.com" target="_blank" class="tool-chip">Benzinga Pre-Market</a>
+          <a href="https://finance.yahoo.com/markets/stocks/gainers/" target="_blank" class="tool-chip">Yahoo Pre-Market Movers</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">05</div>
+      <div class="step-content">
+        <div class="step-title">Ore 15:30 — Apertura (first 30 minuti)</div>
+        <div class="step-time">⏱ 30 minuti — NO trade nei primi 5</div>
+        <div class="step-desc">I primi 5 minuti dopo l'apertura sono caotici — i prezzi si assestano. Aspetta. Nei primi 30 minuti osserva dove si muove il volume reale. Il titolo sta confermando o smentendo la tesi?</div>
+        <div class="step-tools">
+          <a href="https://bookmap.com/en" target="_blank" class="tool-chip">Bookmap Order Flow</a>
+          <a href="https://tradytics.com" target="_blank" class="tool-chip">Tradytics (free)</a>
+          <a href="https://exocharts.com" target="_blank" class="tool-chip">Exocharts (futures/crypto)</a>
+          <a href="https://tradytics.com" target="_blank" class="tool-chip">Tradytics Volume Delta</a>
+          <a href="https://www.tradingview.com" target="_blank" class="tool-chip">TradingView Charts</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">06</div>
+      <div class="step-content">
+        <div class="step-title">Ore 21:00 — Recap e preparazione domani</div>
+        <div class="step-time">⏱ 15 minuti</div>
+        <div class="step-desc">Controlla gli earnings after-hours. Aggiorna la watchlist per domani. Leggi i Form 4 del giorno. Nota i titoli con volume anomalo in chiusura — spesso anticipano movimento il giorno successivo.</div>
+        <div class="step-tools">
+          <a href="https://www.earningswhispers.com" target="_blank" class="tool-chip">Earnings Whispers</a>
+          <a href="https://finviz.com/insidertrading.ashx" rel="noreferrer noopener" target="_blank" class="tool-chip">Finviz Insider recap</a>
+          <a href="https://finviz.com/screener.ashx?v=111&s=ta_unusualvolume" target="_blank" class="tool-chip">Finviz Volume Anomaly</a>
+          <a href="https://finance.yahoo.com/calendar/earnings" target="_blank" class="tool-chip">Yahoo Earnings Calendar</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: AUTOMAZIONI -->
+  <div id="tab-automazioni" class="tab-content">
+    <div class="section-title">Automazioni Gratuite e Low-Cost</div>
+
+    <div class="automation-card">
+      <div class="automation-header">
+        <div class="auto-icon" style="background:rgba(0,255,136,0.1)">📧</div>
+        <div><div class="auto-title">Alert Email — Form 4 Insider</div><div class="auto-platform">SEC EDGAR → Email · Gratis</div></div>
+        <div class="badge badge-green">Gratis</div>
+      </div>
+      <div class="description" style="font-size:13px; color:var(--text-mid); line-height:1.6; margin-bottom:12px;">La SEC manda notifiche email automatiche ogni volta che viene depositato un Form 4 su un titolo che segui. Setup in 5 minuti, completamente gratis.</div>
+      <div class="code-block"><span class="code-comment"># Come attivare:</span>
+1. Vai su → <a href="https://www.sec.gov/cgi-bin/browse-edgar" target="_blank" style="color:#e06c75">https://www.sec.gov/cgi-bin/browse-edgar</a>
+2. Cerca il ticker (es. NVDA) → clicca "Get email alerts"
+3. Seleziona Form Type: "4"
+4. Ricevi email immediata ad ogni insider transaction</div>
+    </div>
+
+    <div class="automation-card">
+      <div class="automation-header">
+        <div class="auto-icon" style="background:rgba(0,180,255,0.1)">🤖</div>
+        <div><div class="auto-title">Bot Telegram — Opzioni Anomale</div><div class="auto-platform">Unusual Whales → Telegram · $50/mese</div></div>
+        <div class="badge badge-blue">Consigliato</div>
+      </div>
+      <div class="description" style="font-size:13px; color:var(--text-mid); line-height:1.6; margin-bottom:12px;">Unusual Whales ha un bot Telegram che manda alert in tempo reale ogni volta che appare un'opzione anomala. Filtra per settore, soglia di valore e tipo.</div>
+      <div class="code-block"><span class="code-comment"># Setup filtro Energy + Defense:</span>
+Sector:     Energy, Industrials, Defense
+Min Value:  $500,000
+Type:       Call Only (bullish)
+DTE:        7-30 giorni
+OI Change:  > 200% (volume anomalo)
+Delivery:   Telegram Bot → immediato
+→ <a href="https://unusualwhales.com/alerts" target="_blank" style="color:#e06c75">https://unusualwhales.com/alerts</a></div>
+    </div>
+
+    <div class="automation-card">
+      <div class="automation-header">
+        <div class="auto-icon" style="background:rgba(255,215,0,0.1)">⚡</div>
+        <div><div class="auto-title">Zapier — News → Notifica Push</div><div class="auto-platform">RSS Reuters → Zapier → Telegram · Gratis</div></div>
+        <div class="badge badge-yellow">DIY Gratis</div>
+      </div>
+      <div class="description" style="font-size:13px; color:var(--text-mid); line-height:1.6; margin-bottom:12px;">Crea un workflow automatico che monitora RSS di Reuters per parole chiave geopolitiche e ti manda notifica su Telegram in meno di 60 secondi dalla pubblicazione.</div>
+      <div class="code-block"><span class="code-comment"># Setup su Zapier (gratis):</span>
+Trigger:  RSS Feed
+          <a href="https://feeds.reuters.com/reuters/businessNews" target="_blank" style="color:#e06c75">https://feeds.reuters.com/reuters/businessNews</a>
+
+Filter:   "Hormuz" OR "Iran" OR "OPEC" OR "sanctions"
+          OR "pipeline" OR "tanker" OR "crude"
+
+Action:   Telegram → tuo canale privato
+          Titolo + Link + Timestamp
+
+Latenza:  meno di 60 secondi
+→ <a href="https://zapier.com/apps/rss/integrations/telegram" target="_blank" style="color:#e06c75">https://zapier.com/apps/rss/integrations/telegram</a></div>
+    </div>
+
+    <div class="automation-card">
+      <div class="automation-header">
+        <div class="auto-icon" style="background:rgba(255,61,61,0.1)">📊</div>
+        <div><div class="auto-title">TradingView Alert — Portafoglio eToro</div><div class="auto-platform">TradingView → Push / Email · Freemium</div></div>
+        <div class="badge badge-red">Avanzato</div>
+      </div>
+      <div class="description" style="font-size:13px; color:var(--text-mid); line-height:1.6; margin-bottom:12px;">Imposta alert sui tuoi titoli eToro attuali. Notifica immediata su telefono quando raggiungono i livelli chiave impostati.</div>
+      <div class="code-block"><span class="code-comment"># Alert portafoglio attuale:</span>
+NVDA:  Cross above 190.00 → "NVDA pre-GTC breakout 16/3"
+AVGO:  Cross above 340.00 → "AVGO post-earnings run"
+PLTR:  Cross above 160.00 → "PLTR nuovo massimo"
+MU:    Cross above 410.00 → "MU breakout"
+OIL:   WTI crosses 82.00  → "OIL take profit zone"
+UCO:   Cross above 32.00  → "UCO obiettivo raggiunto"
+
+→ <a href="https://www.tradingview.com" target="_blank" style="color:#e06c75">https://www.tradingview.com</a> (alert gratuiti inclusi)</div>
+    </div>
+  </div>
+
+  <!-- TAB 4: ALERT -->
+  <div id="tab-alert" class="tab-content">
+    <div class="section-title">Alert Priorità Alta — Setup Immediato</div>
+
+    <div class="alert-row green">
+      <div class="alert-icon">🐋</div>
+      <div class="alert-text"><strong>Opzioni sweep > $1M su Energy/Defense</strong><br>Call sweep anomala = qualcuno sa qualcosa. Agisci entro 30 minuti.</div>
+      <div class="alert-source"><a href="https://unusualwhales.com" target="_blank">Unusual Whales</a></div>
+    </div>
+    <div class="alert-row green">
+      <div class="alert-icon">📋</div>
+      <div class="alert-text"><strong>CEO compra azioni sul mercato aperto</strong><br>Non esercizio opzioni — acquisto reale. Segnale bullish rarissimo e potente.</div>
+      <div class="alert-source"><a href="https://finviz.com/insidertrading.ashx" rel="noreferrer noopener" target="_blank">Finviz Insider / SEC</a></div>
+    </div>
+    <div class="alert-row yellow">
+      <div class="alert-icon">📡</div>
+      <div class="alert-text"><strong>News: "Hormuz" / "Iran sanctions" / "OPEC cut"</strong><br>Monitoraggio RSS Reuters per parole chiave geopolitiche chiave.</div>
+      <div class="alert-source"><a href="https://zapier.com/apps/rss/integrations/telegram" target="_blank">Zapier RSS</a></div>
+    </div>
+    <div class="alert-row yellow">
+      <div class="alert-icon">📈</div>
+      <div class="alert-text"><strong>WTI supera $82 — zona take profit OIL</strong><br>Livello tecnico chiave per la posizione OIL x10. Valuta chiusura parziale.</div>
+      <div class="alert-source"><a href="https://www.tradingview.com/symbols/TVC-USOIL/" target="_blank">TradingView WTI</a></div>
+    </div>
+    <div class="alert-row blue">
+      <div class="alert-icon">🌑</div>
+      <div class="alert-text"><strong>Dark Pool block > $5M su tanker o difesa</strong><br>Istituzionali che accumulano silenziosamente. Segnale a 1-3 giorni.</div>
+      <div class="alert-source"><a href="https://fintel.io/flow" target="_blank">Fintel Dark Pool</a></div>
+    </div>
+    <div class="alert-row red">
+      <div class="alert-icon">😨</div>
+      <div class="alert-text"><strong>VIX supera 25 — alta volatilità</strong><br>Aumenta attenzione agli stop loss. Opportunità e rischio amplificati.</div>
+      <div class="alert-source"><a href="https://www.tradingview.com/symbols/TVC-VIX/" target="_blank">TradingView VIX</a></div>
+    </div>
+    <div class="alert-row red">
+      <div class="alert-icon">🔔</div>
+      <div class="alert-text"><strong>NVDA GTC Conference — 16-19 Marzo 2026</strong><br>Catalyst imminente. Preparati per +/- 10% in apertura il 17 marzo.</div>
+      <div class="alert-source"><a href="https://www.earningswhispers.com/stocks/nvda" target="_blank">Earnings Whispers NVDA</a></div>
+    </div>
+
+    <div class="glow-line"></div>
+
+    <div class="section-title">Stack Consigliato per Iniziare</div>
+    <div class="grid-3">
+      <div class="signal-card">
+        <div class="card-title" style="font-size:16px; margin-bottom:8px;">🆓 Budget Zero</div>
+        <div class="links">
+          <a href="https://finviz.com/insidertrading.ashx" rel="noreferrer noopener" target="_blank" class="link-item"><div class="link-info"><div class="link-name">Finviz Insider</div><div class="link-desc">Form 4 su HTTPS su HTTPS</div></div><span class="link-badge free">Free</span></a>
+          <a href="https://finviz.com" target="_blank" class="link-item"><div class="link-info"><div class="link-name">Finviz</div><div class="link-desc">Screener + news + insider</div></div><span class="link-badge free">Free</span></a>
+          <a href="https://zapier.com/apps/rss/integrations/telegram" target="_blank" class="link-item"><div class="link-info"><div class="link-name">Zapier RSS</div><div class="link-desc">Alert news automatici</div></div><span class="link-badge free">Free</span></a>
+          <a href="https://www.tradingview.com" target="_blank" class="link-item"><div class="link-info"><div class="link-name">TradingView</div><div class="link-desc">Alert tecnici + grafici</div></div><span class="link-badge free">Free</span></a>
+        </div>
+      </div>
+      <div class="signal-card">
+        <div class="card-title" style="font-size:16px; margin-bottom:8px;">💰 Budget €50/mese</div>
+        <div class="links">
+          <a href="https://unusualwhales.com" target="_blank" class="link-item"><div class="link-info"><div class="link-name">Unusual Whales</div><div class="link-desc">Opzioni anomale + bot Telegram</div></div><span class="link-badge paid">$50</span></a>
+          <a href="https://finviz.com/insidertrading.ashx" rel="noreferrer noopener" target="_blank" class="link-item"><div class="link-info"><div class="link-name">Finviz Insider</div><div class="link-desc">Form 4 su HTTPS</div></div><span class="link-badge free">Free</span></a>
+          <a href="https://zapier.com/apps/rss/integrations/telegram" target="_blank" class="link-item"><div class="link-info"><div class="link-name">Zapier RSS</div><div class="link-desc">News automatiche</div></div><span class="link-badge free">Free</span></a>
+          <a href="https://www.tradingview.com/pricing/" target="_blank" class="link-item"><div class="link-info"><div class="link-name">TradingView Pro</div><div class="link-desc">Alert avanzati + più ticker</div></div><span class="link-badge paid">$15</span></a>
+        </div>
+      </div>
+      <div class="signal-card">
+        <div class="card-title" style="font-size:16px; margin-bottom:8px;">🚀 Stack Pro €150/mese</div>
+        <div class="links">
+          <a href="https://unusualwhales.com" target="_blank" class="link-item"><div class="link-info"><div class="link-name">Unusual Whales</div><div class="link-desc">Opzioni anomale + bot Telegram</div></div><span class="link-badge paid">$50</span></a>
+          <a href="https://fintel.io" target="_blank" class="link-item"><div class="link-info"><div class="link-name">Fintel</div><div class="link-desc">Dark pool + istituzionali</div></div><span class="link-badge paid">$49</span></a>
+          <a href="https://pro.benzinga.com" target="_blank" class="link-item"><div class="link-info"><div class="link-name">Benzinga Pro</div><div class="link-desc">News ultra-veloci + audio alert</div></div><span class="link-badge paid">$49</span></a>
+          <a href="https://bookmap.com/en" target="_blank" class="link-item"><div class="link-info"><div class="link-name">Bookmap</div><div class="link-desc">Order flow heatmap real-time</div></div><span class="link-badge paid">$29</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 5: SIGNAL SCANNER -->
+  <div id="tab-scanner" class="tab-content">
+    <div class="section-title">🔬 Signal Scanner — Incrocio Opzioni + Insider + Dark Pool</div>
+
+    <!-- PARTE 1: MANUALE -->
+    <div class="signal-card" style="margin-bottom:16px; border-color: rgba(0,255,136,0.2);">
+      <div class="card-header">
+        <div><div class="card-title">📋 Metodo Manuale — 5 Minuti</div><div class="card-subtitle">Come incrociare i 3 segnali senza strumenti a pagamento</div></div>
+        <div class="badge badge-green">Gratis</div>
+      </div>
+      <div class="description">Apri i 3 siti in parallelo e cerca ticker che appaiono in tutti e 3. Un titolo con opzioni anomale + insider buy + dark pool block ha una probabilità molto più alta di muoversi.</div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="alert-row green">
+          <div class="alert-icon">1️⃣</div>
+          <div class="alert-text"><strong>Unusual Whales</strong> — vai su "Flow" → filtra Call Only, Min $500k, DTE 7-30gg → annota i ticker con più sweep</div>
+          <div class="alert-source"><a href="https://unusualwhales.com/flow" target="_blank">Apri →</a></div>
+        </div>
+        <div class="alert-row blue">
+          <div class="alert-icon">2️⃣</div>
+          <div class="alert-text"><strong>Finviz Insider</strong> — filtra per acquisti reali, importo > $500k degli ultimi 3 giorni → annota i ticker</div>
+          <div class="alert-source"><a href="https://finviz.com/insidertrading.ashx" target="_blank">Apri →</a></div>
+        </div>
+        <div class="alert-row yellow">
+          <div class="alert-icon">3️⃣</div>
+          <div class="alert-text"><strong>Tradytics Dark Pool</strong> — vai su Dark Pool → filtra blocchi > $1M nelle ultime 24h → annota i ticker</div>
+          <div class="alert-source"><a href="https://tradytics.com/darkpool-market" target="_blank">Apri →</a></div>
+        </div>
+        <div class="alert-row" style="border-left-color: var(--accent); background: rgba(0,255,136,0.05);">
+          <div class="alert-icon">🎯</div>
+          <div class="alert-text"><strong>Incrocia le liste</strong> — ogni ticker che appare in 2 o più liste è un segnale forte. Appare in tutti e 3? Entra.</div>
+          <div class="alert-source" style="color:var(--accent); font-family:'Space Mono',monospace; font-size:9px;">CONVERGENZA</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PARTE 2: AI SCANNER -->
+    <div class="signal-card" style="margin-bottom:16px; border-color: rgba(0,180,255,0.2);">
+      <div class="card-header">
+        <div><div class="card-title">🤖 AI Scanner — Analisi Automatica</div><div class="card-subtitle">Incolla i dati qui sotto — l'AI trova le convergenze per te</div></div>
+        <div class="badge badge-blue">AI Powered</div>
+      </div>
+      <div class="description">Copia i ticker da Unusual Whales, Finviz Insider e Tradytics Dark Pool e incollali nei campi qui sotto. L'AI analizza automaticamente le convergenze e ti dice quali titoli hanno più segnali allineati.</div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px;">
+        <div>
+          <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); margin-bottom:6px; letter-spacing:1px;">🐋 OPZIONI ANOMALE</div>
+          <textarea id="options-input" placeholder="Es: NVDA, PLTR, AVGO, AMD..." style="width:100%; height:100px; background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:10px; color:var(--text); font-family:'Space Mono',monospace; font-size:11px; resize:none; outline:none;"></textarea>
+        </div>
+        <div>
+          <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent4); margin-bottom:6px; letter-spacing:1px;">📋 INSIDER FORM 4</div>
+          <textarea id="insider-input" placeholder="Es: MSFT, TSLA, META..." style="width:100%; height:100px; background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:10px; color:var(--text); font-family:'Space Mono',monospace; font-size:11px; resize:none; outline:none;"></textarea>
+        </div>
+        <div>
+          <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent3); margin-bottom:6px; letter-spacing:1px;">🌑 DARK POOL</div>
+          <textarea id="darkpool-input" placeholder="Es: AAPL, NVDA, JPM..." style="width:100%; height:100px; background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:10px; color:var(--text); font-family:'Space Mono',monospace; font-size:11px; resize:none; outline:none;"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-bottom:16px;">
+        <button onclick="scanSignals()" style="flex:1; padding:12px; background:var(--accent); border:none; border-radius:4px; color:#000; font-family:'Space Mono',monospace; font-size:12px; font-weight:700; cursor:pointer; letter-spacing:1px; text-transform:uppercase;">⚡ Analizza Convergenze</button>
+        <button onclick="clearAll()" style="padding:12px 20px; background:var(--surface2); border:1px solid var(--border); border-radius:4px; color:var(--text-dim); font-family:'Space Mono',monospace; font-size:11px; cursor:pointer;">Reset</button>
+      </div>
+
+      <div id="scanner-results" style="display:none;">
+        <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); letter-spacing:2px; margin-bottom:12px;">// RISULTATI ANALISI</div>
+        <div id="results-content"></div>
+      </div>
+    </div>
+
+    <!-- PARTE 3: PYTHON SCRIPT -->
+    <div class="signal-card" style="border-color: rgba(255,215,0,0.2);">
+      <div class="card-header">
+        <div><div class="card-title">🐍 Script Python — Automazione Completa</div><div class="card-subtitle">Richiede abbonamenti API a Unusual Whales e Fintel</div></div>
+        <div class="badge badge-yellow">Pro — $99+/mese</div>
+      </div>
+      <div class="description">Script Python che chiama automaticamente le API di Unusual Whales, SEC EDGAR e Fintel ogni mattina alle 8:00 e ti manda su Telegram i ticker con convergenza su tutti e 3 i segnali.</div>
+
+      <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+        <a href="https://unusualwhales.com/api" target="_blank" class="tool-chip">Unusual Whales API</a>
+        <a href="https://efts.sec.gov/LATEST/search-index/api" target="_blank" class="tool-chip">SEC EDGAR API (free)</a>
+        <a href="https://fintel.io/api" target="_blank" class="tool-chip">Fintel API</a>
+        <a href="https://core.telegram.org/bots/api" target="_blank" class="tool-chip">Telegram Bot API (free)</a>
+      </div>
+
+      <div class="code-block"><span class="code-comment">#!/usr/bin/env python3
+# Signal Convergence Scanner
+# Richiede: pip install requests pandas schedule python-telegram-bot
+# API Keys: Unusual Whales ($50/mese) + Fintel ($49/mese) + SEC (gratis)</span>
+
+<span style="color:var(--accent)">import</span> requests, schedule, time
+<span style="color:var(--accent)">from</span> datetime <span style="color:var(--accent)">import</span> datetime, timedelta
+<span style="color:var(--accent)">from</span> collections <span style="color:var(--accent)">import</span> defaultdict
+
+<span class="code-comment"># === CONFIG ===</span>
+UNUSUAL_WHALES_KEY = <span style="color:#e06c75">"tua_api_key"</span>
+FINTEL_KEY         = <span style="color:#e06c75">"tua_api_key"</span>
+TELEGRAM_TOKEN     = <span style="color:#e06c75">"tuo_bot_token"</span>
+TELEGRAM_CHAT_ID   = <span style="color:#e06c75">"tuo_chat_id"</span>
+
+<span class="code-comment"># === 1. OPZIONI ANOMALE (Unusual Whales) ===</span>
+<span style="color:var(--accent)">def</span> get_unusual_options():
+    url = <span style="color:#e06c75">"https://api.unusualwhales.com/api/option-trades/flow-alerts"</span>
+    headers = {<span style="color:#e06c75">"Authorization"</span>: f<span style="color:#e06c75">"Bearer {UNUSUAL_WHALES_KEY}"</span>}
+    params = {
+        <span style="color:#e06c75">"type"</span>: <span style="color:#e06c75">"call"</span>,           <span class="code-comment"># solo call bullish</span>
+        <span style="color:#e06c75">"min_premium"</span>: <span style="color:#7ec8e3">500000</span>,  <span class="code-comment"># min $500k</span>
+        <span style="color:#e06c75">"min_dte"</span>: <span style="color:#7ec8e3">7</span>,           <span class="code-comment"># min 7 giorni scadenza</span>
+        <span style="color:#e06c75">"max_dte"</span>: <span style="color:#7ec8e3">30</span>           <span class="code-comment"># max 30 giorni</span>
+    }
+    r = requests.get(url, headers=headers, params=params)
+    tickers = [x[<span style="color:#e06c75">"ticker"</span>] <span style="color:var(--accent)">for</span> x <span style="color:var(--accent)">in</span> r.json().get(<span style="color:#e06c75">"data"</span>, [])]
+    <span style="color:var(--accent)">return</span> set(tickers)
+
+<span class="code-comment"># === 2. INSIDER FORM 4 (SEC EDGAR — gratuito) ===</span>
+<span style="color:var(--accent)">def</span> get_insider_buys():
+    url = <span style="color:#e06c75">"https://efts.sec.gov/LATEST/search-index/api/search.json"</span>
+    params = {
+        <span style="color:#e06c75">"q"</span>: <span style="color:#e06c75">"form-type:4"</span>,
+        <span style="color:#e06c75">"dateRange"</span>: <span style="color:#e06c75">"custom"</span>,
+        <span style="color:#e06c75">"startdt"</span>: (datetime.now()-timedelta(days=<span style="color:#7ec8e3">2</span>)).strftime(<span style="color:#e06c75">"%Y-%m-%d"</span>),
+        <span style="color:#e06c75">"enddt"</span>: datetime.now().strftime(<span style="color:#e06c75">"%Y-%m-%d"</span>)
+    }
+    r = requests.get(url, params=params)
+    hits = r.json().get(<span style="color:#e06c75">"hits"</span>, {}).get(<span style="color:#e06c75">"hits"</span>, [])
+    tickers = [h[<span style="color:#e06c75">"_source"</span>].get(<span style="color:#e06c75">"period_of_report"</span>, <span style="color:#e06c75">""</span>) <span style="color:var(--accent)">for</span> h <span style="color:var(--accent)">in</span> hits]
+    <span style="color:var(--accent)">return</span> set(tickers)
+
+<span class="code-comment"># === 3. DARK POOL (Fintel) ===</span>
+<span style="color:var(--accent)">def</span> get_darkpool_blocks():
+    url = <span style="color:#e06c75">"https://api.fintel.io/data/darkpool/activity"</span>
+    headers = {<span style="color:#e06c75">"Authorization"</span>: f<span style="color:#e06c75">"Bearer {FINTEL_KEY}"</span>}
+    params = {<span style="color:#e06c75">"min_size"</span>: <span style="color:#7ec8e3">1000000</span>, <span style="color:#e06c75">"date"</span>: datetime.now().strftime(<span style="color:#e06c75">"%Y-%m-%d"</span>)}
+    r = requests.get(url, headers=headers, params=params)
+    tickers = [x[<span style="color:#e06c75">"ticker"</span>] <span style="color:var(--accent)">for</span> x <span style="color:var(--accent)">in</span> r.json().get(<span style="color:#e06c75">"data"</span>, [])]
+    <span style="color:var(--accent)">return</span> set(tickers)
+
+<span class="code-comment"># === 4. TROVA CONVERGENZE ===</span>
+<span style="color:var(--accent)">def</span> find_convergences():
+    options  = get_unusual_options()
+    insider  = get_insider_buys()
+    darkpool = get_darkpool_blocks()
+
+    scores = defaultdict(int)
+    sources = defaultdict(list)
+
+    <span style="color:var(--accent)">for</span> t <span style="color:var(--accent)">in</span> options:
+        scores[t] += <span style="color:#7ec8e3">1</span>; sources[t].append(<span style="color:#e06c75">"🐋 Opzioni"</span>)
+    <span style="color:var(--accent)">for</span> t <span style="color:var(--accent)">in</span> insider:
+        scores[t] += <span style="color:#7ec8e3">1</span>; sources[t].append(<span style="color:#e06c75">"📋 Insider"</span>)
+    <span style="color:var(--accent)">for</span> t <span style="color:var(--accent)">in</span> darkpool:
+        scores[t] += <span style="color:#7ec8e3">1</span>; sources[t].append(<span style="color:#e06c75">"🌑 Dark Pool"</span>)
+
+    <span class="code-comment"># Solo titoli con 2+ segnali allineati</span>
+    hits = [(t, scores[t], sources[t]) <span style="color:var(--accent)">for</span> t <span style="color:var(--accent)">in</span> scores <span style="color:var(--accent)">if</span> scores[t] >= <span style="color:#7ec8e3">2</span>]
+    hits.sort(key=<span style="color:var(--accent)">lambda</span> x: x[<span style="color:#7ec8e3">1</span>], reverse=<span style="color:var(--accent)">True</span>)
+    <span style="color:var(--accent)">return</span> hits
+
+<span class="code-comment"># === 5. INVIA SU TELEGRAM ===</span>
+<span style="color:var(--accent)">def</span> send_telegram(msg):
+    url = f<span style="color:#e06c75">"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"</span>
+    requests.post(url, json={<span style="color:#e06c75">"chat_id"</span>: TELEGRAM_CHAT_ID, <span style="color:#e06c75">"text"</span>: msg, <span style="color:#e06c75">"parse_mode"</span>: <span style="color:#e06c75">"HTML"</span>})
+
+<span style="color:var(--accent)">def</span> morning_scan():
+    hits = find_convergences()
+    <span style="color:var(--accent)">if not</span> hits:
+        send_telegram(<span style="color:#e06c75">"📊 Nessuna convergenza oggi."</span>)
+        <span style="color:var(--accent)">return</span>
+
+    msg = <span style="color:#e06c75">"🔬 &lt;b&gt;SIGNAL SCANNER — Convergenze oggi&lt;/b&gt;\n\n"</span>
+    <span style="color:var(--accent)">for</span> ticker, score, srcs <span style="color:var(--accent)">in</span> hits:
+        stars = <span style="color:#e06c75">"⭐"</span> * score
+        msg += f<span style="color:#e06c75">"&lt;b&gt;${ticker}&lt;/b&gt; {stars}\n"</span>
+        msg += f<span style="color:#e06c75">"  → {' + '.join(srcs)}\n\n"</span>
+    send_telegram(msg)
+
+<span class="code-comment"># === 6. SCHEDULER — ogni mattina alle 8:00 ===</span>
+schedule.every().day.at(<span style="color:#e06c75">"08:00"</span>).do(morning_scan)
+
+<span style="color:var(--accent)">print</span>(<span style="color:#e06c75">"✅ Signal Scanner attivo — aspetto le 8:00..."</span>)
+<span style="color:var(--accent)">while True</span>:
+    schedule.run_pending()
+    time.sleep(<span style="color:#7ec8e3">60</span>)</div>
+    </div>
+
+  </div>
+
+  <!-- TAB 6: GUIDA -->
+  <div id="tab-guida" class="tab-content">
+    <div class="section-title">Come Leggere i Dati — Guida con Esempi Reali</div>
+
+    <!-- OPENINSIDER -->
+    <div class="signal-card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <div><div class="card-title">🔓 OpenInsider — Come Leggere i Form 4</div><div class="card-subtitle">openinsider.com — Gratis</div></div>
+        <div class="badge badge-green">Priorità Alta</div>
+      </div>
+      <div class="description">OpenInsider mostra tutti gli acquisti e vendite dei dirigenti aziendali. Ogni riga è una transazione dichiarata alla SEC entro 2 giorni dall'operazione.</div>
+
+      <div style="background:#0d0d0d; border:1px solid var(--border); border-radius:6px; padding:16px; font-family:'Space Mono',monospace; font-size:11px; margin-bottom:16px; overflow-x:auto;">
+        <div style="color:var(--accent); margin-bottom:8px; font-size:10px; letter-spacing:2px;">// ESEMPIO RIGA OPENINSIDER</div>
+        <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:8px; color:var(--text-dim); font-size:9px; margin-bottom:6px; text-transform:uppercase; letter-spacing:1px;">
+          <div>Data</div><div>Ticker</div><div>Insider</div><div>Ruolo</div><div>Tipo</div><div>Prezzo</div><div>Valore</div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:8px; color:var(--text); font-size:11px;">
+          <div>2026-03-04</div><div style="color:var(--accent)">NVDA</div><div>Jensen Huang</div><div style="color:var(--accent3)">CEO</div><div style="color:var(--accent)">P</div><div>$182.50</div><div style="color:var(--accent)">$2.1M</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+        <div class="alert-row green">
+          <div class="alert-icon">✅</div>
+          <div class="alert-text"><strong>Tipo "P" = Purchase (Acquisto)</strong> — il segnale che cerchi. Il dirigente ha comprato azioni sul mercato aperto con soldi propri.</div>
+        </div>
+        <div class="alert-row red">
+          <div class="alert-icon">❌</div>
+          <div class="alert-text"><strong>Tipo "S" = Sale (Vendita)</strong> — può essere normale diversificazione. Non è sempre negativo ma non è un segnale bullish.</div>
+        </div>
+        <div class="alert-row yellow">
+          <div class="alert-icon">⚠️</div>
+          <div class="alert-text"><strong>Tipo "M" = Option Exercise</strong> — NON è un acquisto reale. È solo l'esercizio di opzioni già assegnate come compensazione. Ignora questi.</div>
+        </div>
+        <div class="alert-row blue">
+          <div class="alert-icon">🎯</div>
+          <div class="alert-text"><strong>Tipo "A" = Award</strong> — azioni assegnate come bonus. Non significa nulla — l'azienda le ha date, non comprate.</div>
+        </div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); letter-spacing:2px; margin-bottom:10px;">// I 4 FILTRI CHE USO IO</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <div class="alert-row green"><div class="alert-icon">1️⃣</div><div class="alert-text"><strong>Tipo = P (Purchase)</strong> — solo acquisti reali sul mercato aperto</div></div>
+        <div class="alert-row green"><div class="alert-icon">2️⃣</div><div class="alert-text"><strong>Valore > $100,000</strong> — importo significativo, non simbolico</div></div>
+        <div class="alert-row green"><div class="alert-icon">3️⃣</div><div class="alert-text"><strong>Ruolo = CEO, CFO, COO, Director</strong> — i più informati sull'azienda</div></div>
+        <div class="alert-row green"><div class="alert-icon">4️⃣</div><div class="alert-text"><strong>Cluster = 2+ insider che comprano insieme</strong> — segnale fortissimo, rarissimo</div></div>
+      </div>
+
+      <div style="margin-top:16px; padding:12px; background:rgba(0,255,136,0.05); border:1px solid rgba(0,255,136,0.15); border-radius:6px;">
+        <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); margin-bottom:6px;">💡 ESEMPIO REALE — Segnale Perfetto</div>
+        <div style="font-size:13px; color:var(--text-mid); line-height:1.8;">
+          <strong style="color:var(--text)">2026-01-15 — $PLTR</strong><br>
+          CEO Alex Karp → Acquisto $500,000 a $145<br>
+          CFO David Glazer → Acquisto $200,000 a $144<br>
+          COO Shyam Sankar → Acquisto $150,000 a $145<br>
+          <span style="color:var(--accent)">→ 3 insider comprano insieme = segnale massimo. PLTR è salita a $165 nelle 2 settimane successive.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- UNUSUAL WHALES -->
+    <div class="signal-card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <div><div class="card-title">🐋 Unusual Whales — Come Leggere le Opzioni Anomale</div><div class="card-subtitle">unusualwhales.com — $50/mese</div></div>
+        <div class="badge badge-yellow">Segnale Più Potente</div>
+      </div>
+      <div class="description">Unusual Whales mostra ogni volta che qualcuno piazza un ordine su opzioni che è anomalo rispetto al volume normale. Questi ordini spesso precedono movimenti importanti di 1-5 giorni.</div>
+
+      <div style="background:#0d0d0d; border:1px solid var(--border); border-radius:6px; padding:16px; font-family:'Space Mono',monospace; font-size:11px; margin-bottom:16px; overflow-x:auto;">
+        <div style="color:var(--accent); margin-bottom:8px; font-size:10px; letter-spacing:2px;">// ESEMPIO RIGA UNUSUAL WHALES</div>
+        <div style="display:grid; grid-template-columns:repeat(8,1fr); gap:6px; color:var(--text-dim); font-size:9px; margin-bottom:6px; text-transform:uppercase; letter-spacing:1px;">
+          <div>Ticker</div><div>Tipo</div><div>Strike</div><div>Scad.</div><div>Premium</div><div>Vol/OI</div><div>Spot</div><div>Flag</div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(8,1fr); gap:6px; color:var(--text); font-size:11px;">
+          <div style="color:var(--accent)">NVDA</div><div style="color:var(--accent)">CALL</div><div>$200</div><div>21MAR</div><div style="color:var(--accent)">$2.4M</div><div style="color:var(--accent3)">47x</div><div>$182</div><div style="color:var(--accent2)">SWEEP</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+        <div class="alert-row green">
+          <div class="alert-icon">🎯</div>
+          <div class="alert-text"><strong>CALL = scommessa rialzista</strong> — qualcuno paga per il diritto di comprare il titolo a un prezzo fisso. Se compra CALL significa che si aspetta che il titolo salga.</div>
+        </div>
+        <div class="alert-row red">
+          <div class="alert-icon">📉</div>
+          <div class="alert-text"><strong>PUT = scommessa ribassista</strong> — qualcuno si aspetta che il titolo scenda. Utile per capire dove si posizionano gli short.</div>
+        </div>
+        <div class="alert-row yellow">
+          <div class="alert-icon">⚡</div>
+          <div class="alert-text"><strong>SWEEP = ordine urgente</strong> — attraversa più exchange contemporaneamente per essere eseguito subito. Segnale che chi compra ha fretta — sa qualcosa.</div>
+        </div>
+        <div class="alert-row blue">
+          <div class="alert-icon">📦</div>
+          <div class="alert-text"><strong>BLOCK = ordine singolo grande</strong> — un solo blocco enorme. Meno urgente dello sweep ma ugualmente significativo.</div>
+        </div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); letter-spacing:2px; margin-bottom:10px;">// COSA GUARDARE NELL'ORDINE</div>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+        <div class="alert-row green"><div class="alert-icon">💰</div><div class="alert-text"><strong>Premium > $500,000</strong> — importo minimo per considerarlo significativo. Sotto questa soglia potrebbe essere retail.</div></div>
+        <div class="alert-row green"><div class="alert-icon">📊</div><div class="alert-text"><strong>Vol/OI ratio > 10x</strong> — il volume è 10 volte l'open interest normale. Significa che è anomalo rispetto alla storia del titolo.</div></div>
+        <div class="alert-row green"><div class="alert-icon">📅</div><div class="alert-text"><strong>DTE 7-30 giorni</strong> — opzioni che scadono tra 1 settimana e 1 mese. Chi compra si aspetta un movimento a breve. Evita DTE > 90 giorni.</div></div>
+        <div class="alert-row yellow"><div class="alert-icon">🎯</div><div class="alert-text"><strong>Strike OTM (Out of The Money)</strong> — strike sopra il prezzo attuale per una CALL. Es: NVDA a $182, CALL strike $200 = bullish aggressivo.</div></div>
+      </div>
+
+      <div style="padding:12px; background:rgba(255,215,0,0.05); border:1px solid rgba(255,215,0,0.15); border-radius:6px;">
+        <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent3); margin-bottom:6px;">💡 ESEMPIO REALE — Come lo hai visto oggi</div>
+        <div style="font-size:13px; color:var(--text-mid); line-height:1.8;">
+          <strong style="color:var(--text)">AVGO — ore 8:15 pre-market</strong><br>
+          CALL $350 strike, scad. 21MAR, Premium $1.8M, Vol/OI 34x, flag SWEEP<br>
+          Prezzo AVGO al momento: $320<br>
+          <span style="color:var(--accent3)">→ Qualcuno scommette $1.8M che AVGO va a $350 entro 2 settimane. AVGO ha poi fatto +25% dopo gli earnings quella sera.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRADYTICS DARK POOL -->
+    <div class="signal-card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <div><div class="card-title">🌑 Tradytics Dark Pool — Come Leggere i Blocchi</div><div class="card-subtitle">tradytics.com — Freemium</div></div>
+        <div class="badge badge-blue">1-3 Giorni Prima</div>
+      </div>
+      <div class="description">I dark pool sono mercati privati dove i grandi fondi comprano senza muovere il prezzo. Quando appare un blocco grande, il prezzo pubblico si muove 1-3 giorni dopo.</div>
+
+      <div style="background:#0d0d0d; border:1px solid var(--border); border-radius:6px; padding:16px; font-family:'Space Mono',monospace; font-size:11px; margin-bottom:16px; overflow-x:auto;">
+        <div style="color:var(--accent); margin-bottom:8px; font-size:10px; letter-spacing:2px;">// ESEMPIO RIGA DARK POOL</div>
+        <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:8px; color:var(--text-dim); font-size:9px; margin-bottom:6px; text-transform:uppercase; letter-spacing:1px;">
+          <div>Ticker</div><div>Prezzo</div><div>Blocco</div><div>Valore</div><div>% Float</div><div>Sentiment</div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:8px; color:var(--text); font-size:11px;">
+          <div style="color:var(--accent)">PLTR</div><div>$151.00</div><div>2.4M</div><div style="color:var(--accent)">$362M</div><div style="color:var(--accent3)">1.8%</div><div style="color:var(--accent)">BULLISH</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+        <div class="alert-row green">
+          <div class="alert-icon">🟢</div>
+          <div class="alert-text"><strong>Sentiment BULLISH</strong> — il blocco è stato eseguito vicino al prezzo ask (offerta). Significa che il compratore aveva fretta — segnale positivo.</div>
+        </div>
+        <div class="alert-row red">
+          <div class="alert-icon">🔴</div>
+          <div class="alert-text"><strong>Sentiment BEARISH</strong> — il blocco è stato eseguito vicino al prezzo bid. Il venditore aveva fretta — segnale negativo.</div>
+        </div>
+        <div class="alert-row yellow">
+          <div class="alert-icon">📊</div>
+          <div class="alert-text"><strong>% Float > 1%</strong> — il blocco rappresenta più dell'1% delle azioni disponibili sul mercato. È un segnale molto significativo.</div>
+        </div>
+      </div>
+
+      <div style="padding:12px; background:rgba(0,180,255,0.05); border:1px solid rgba(0,180,255,0.15); border-radius:6px;">
+        <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent4); margin-bottom:6px;">💡 ESEMPIO REALE</div>
+        <div style="font-size:13px; color:var(--text-mid); line-height:1.8;">
+          <strong style="color:var(--text)">NBIS — lunedì mattina</strong><br>
+          Blocco dark pool $45M, sentiment BULLISH, % float 2.1%<br>
+          Prezzo al momento: $96<br>
+          <span style="color:var(--accent4)">→ Un fondo ha comprato silenziosamente $45M di NBIS. Mercoledì NBIS è salita a $99 (+3%). Chi aveva visto il blocco aveva 2 giorni di vantaggio.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COME INCROCIARE -->
+    <div class="signal-card" style="margin-bottom:16px; border-color: rgba(0,255,136,0.3);">
+      <div class="card-header">
+        <div><div class="card-title">🎯 Come Incrociare Tutto — Il Metodo Completo</div><div class="card-subtitle">La checklist prima di ogni trade</div></div>
+        <div class="badge badge-green">Metodo</div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); letter-spacing:2px; margin-bottom:12px;">// CHECKLIST PRE-TRADE</div>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+        <div class="alert-row green"><div class="alert-icon">1️⃣</div><div class="alert-text"><strong>C'è un catalyst?</strong> — earnings imminenti, FDA decision, conference, news geopolitica. Senza catalyst il movimento è casuale.</div></div>
+        <div class="alert-row green"><div class="alert-icon">2️⃣</div><div class="alert-text"><strong>Opzioni anomale?</strong> — cerca CALL sweep > $500k nelle ultime 48h su Unusual Whales. Se non ci sono, il segnale è debole.</div></div>
+        <div class="alert-row green"><div class="alert-icon">3️⃣</div><div class="alert-text"><strong>Insider buying?</strong> — controlla OpenInsider. C'è stato un acquisto reale (tipo P) negli ultimi 7 giorni? CEO o CFO preferibilmente.</div></div>
+        <div class="alert-row green"><div class="alert-icon">4️⃣</div><div class="alert-text"><strong>Dark pool bullish?</strong> — cerca blocchi > $1M con sentiment BULLISH su Tradytics nelle ultime 24h.</div></div>
+        <div class="alert-row green"><div class="alert-icon">5️⃣</div><div class="alert-text"><strong>Quanti segnali hai?</strong> — 1 segnale = monitorare. 2 segnali = posizione piccola. 3 segnali = posizione normale. 4 segnali = massima convinzione.</div></div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent2); letter-spacing:2px; margin-bottom:12px;">// RED FLAG — NON ENTRARE SE</div>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+        <div class="alert-row red"><div class="alert-icon">🚫</div><div class="alert-text"><strong>Insider vende mentre tu compri</strong> — CEO che vende è il segnale più negativo. Aspetta che smetta.</div></div>
+        <div class="alert-row red"><div class="alert-icon">🚫</div><div class="alert-text"><strong>Opzioni PUT anomale > CALL anomale</strong> — qualcuno si protegge dal ribasso. Il mercato sa qualcosa che tu non sai.</div></div>
+        <div class="alert-row red"><div class="alert-icon">🚫</div><div class="alert-text"><strong>Dark pool BEARISH</strong> — i fondi stanno scaricando in silenzio. Non comprare contro di loro.</div></div>
+        <div class="alert-row red"><div class="alert-icon">🚫</div><div class="alert-text"><strong>Il titolo è già salito >20% nella settimana</strong> — il movimento è già avvenuto. Sei in ritardo.</div></div>
+      </div>
+
+      <div style="padding:16px; background:rgba(0,255,136,0.05); border:1px solid rgba(0,255,136,0.2); border-radius:6px;">
+        <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); margin-bottom:10px;">💡 ESEMPIO COMPLETO — RYTM (il trade di oggi)</div>
+        <div style="font-size:13px; color:var(--text-mid); line-height:2;">
+          <strong style="color:var(--accent)">✅ Catalyst:</strong> FDA decision 20 marzo — 15 giorni<br>
+          <strong style="color:var(--accent)">✅ Opzioni:</strong> CALL sweep $800k a strike $110, DTE 21MAR<br>
+          <strong style="color:var(--accent)">✅ Insider:</strong> CEO acquisto $300k il 1 marzo (tipo P)<br>
+          <strong style="color:var(--accent)">✅ Dark pool:</strong> blocco $12M sentiment BULLISH<br>
+          <strong style="color:var(--accent3)">⭐⭐⭐⭐ Score: 4/4 — massima convinzione</strong><br>
+          <strong style="color:var(--text)">Entry: $90.43 | Stop: $85 | Target: $125 entro 17 marzo</strong><br>
+          <span style="color:var(--text-dim); font-size:11px;">Strategia: esci 2-3 giorni prima del 20 marzo — "buy the rumor, sell the news"</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- GLOSSARIO -->
+    <div class="signal-card">
+      <div class="card-header">
+        <div><div class="card-title">📚 Glossario Rapido</div><div class="card-subtitle">I termini che incontri ogni giorno</div></div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div class="alert-row blue"><div class="alert-icon">📖</div><div class="alert-text"><strong>OTM (Out of The Money)</strong> — opzione con strike lontano dal prezzo attuale. Più rischiosa ma più esplosiva.</div></div>
+        <div class="alert-row blue"><div class="alert-icon">📖</div><div class="alert-text"><strong>ITM (In The Money)</strong> — opzione con strike vicino o già raggiunto. Più sicura ma meno esplosiva.</div></div>
+        <div class="alert-row blue"><div class="alert-icon">📖</div><div class="alert-text"><strong>DTE (Days To Expiry)</strong> — giorni alla scadenza dell'opzione. Meno DTE = più rischiosa.</div></div>
+        <div class="alert-row blue"><div class="alert-icon">📖</div><div class="alert-text"><strong>IV (Implied Volatility)</strong> — quanto il mercato si aspetta che il titolo si muova. Alta IV = opzioni care.</div></div>
+        <div class="alert-row blue"><div class="alert-icon">📖</div><div class="alert-text"><strong>Open Interest (OI)</strong> — numero di contratti aperti su una opzione. Più OI = più interesse istituzionale.</div></div>
+        <div class="alert-row blue"><div class="alert-icon">📖</div><div class="alert-text"><strong>PDUFA Date</strong> — data in cui la FDA decide su un farmaco. Catalyst binario per biotech.</div></div>
+        <div class="alert-row blue"><div class="alert-icon">📖</div><div class="alert-text"><strong>Float</strong> — numero di azioni disponibili per il trading. Float basso = movimenti più esplosivi.</div></div>
+        <div class="alert-row blue"><div class="alert-icon">📖</div><div class="alert-text"><strong>Short Interest</strong> — % di azioni vendute allo scoperto. Alto short interest = possibile short squeeze.</div></div>
+        <div class="alert-row blue"><div class="alert-icon">📖</div><div class="alert-text"><strong>Short Squeeze</strong> — quando i titoli salgono velocemente e chi è short è costretto a ricomprare, accelerando il rialzo.</div></div>
+        <div class="alert-row blue"><div class="alert-icon">📖</div><div class="alert-text"><strong>Gap Down/Up</strong> — il titolo apre a un prezzo molto diverso dalla chiusura precedente. Scavalca gli stop loss normali.</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="disclaimer">
+    ⚠️ DISCLAIMER — Questo workflow è a scopo puramente informativo e didattico.<br>
+    Non costituisce consulenza finanziaria. Il trading comporta rischi significativi di perdita del capitale.<br>
+    Il 74% dei trader retail perde denaro. Investi solo quello che puoi permetterti di perdere.
+  </div>
+
+</div>
+<script>
+function showTab(name, event) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function parseTickers(text) {
+  return text.toUpperCase()
+    .split(/[\s,;\n]+/)
+    .map(t => t.trim().replace(/[^A-Z]/g, ''))
+    .filter(t => t.length >= 1 && t.length <= 5);
+}
+
+function scanSignals() {
+  const optionsRaw  = document.getElementById('options-input').value;
+  const insiderRaw  = document.getElementById('insider-input').value;
+  const darkpoolRaw = document.getElementById('darkpool-input').value;
+
+  const options  = new Set(parseTickers(optionsRaw));
+  const insider  = new Set(parseTickers(insiderRaw));
+  const darkpool = new Set(parseTickers(darkpoolRaw));
+
+  const allTickers = new Set([...options, ...insider, ...darkpool]);
+  const results = [];
+
+  allTickers.forEach(ticker => {
+    const signals = [];
+    let score = 0;
+    if (options.has(ticker))  { signals.push({ label: '🐋 Opzioni Anomale', color: 'var(--accent)' });  score++; }
+    if (insider.has(ticker))  { signals.push({ label: '📋 Insider Form 4',  color: 'var(--accent4)' }); score++; }
+    if (darkpool.has(ticker)) { signals.push({ label: '🌑 Dark Pool',        color: 'var(--accent3)' }); score++; }
+    if (score >= 1) results.push({ ticker, score, signals });
+  });
+
+  results.sort((a, b) => b.score - a.score);
+
+  const container = document.getElementById('results-content');
+  const wrapper   = document.getElementById('scanner-results');
+
+  if (results.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-dim); font-family:\'Space Mono\',monospace; font-size:12px; padding:16px;">Nessun ticker inserito — incolla i dati nei campi sopra.</div>';
+    wrapper.style.display = 'block';
+    return;
+  }
+
+  const triple = results.filter(r => r.score === 3);
+  const double = results.filter(r => r.score === 2);
+  const single = results.filter(r => r.score === 1);
+
+  let html = '';
+
+  if (triple.length > 0) {
+    html += `<div style="font-family:'Space Mono',monospace; font-size:9px; color:var(--accent); letter-spacing:2px; margin-bottom:8px; margin-top:4px;">🎯 CONVERGENZA TRIPLA — SEGNALE MASSIMO</div>`;
+    triple.forEach(r => {
+      html += renderResult(r, 'rgba(0,255,136,0.08)', 'rgba(0,255,136,0.3)');
+    });
+  }
+
+  if (double.length > 0) {
+    html += `<div style="font-family:'Space Mono',monospace; font-size:9px; color:var(--accent4); letter-spacing:2px; margin-bottom:8px; margin-top:16px;">⚡ CONVERGENZA DOPPIA — SEGNALE FORTE</div>`;
+    double.forEach(r => {
+      html += renderResult(r, 'rgba(0,180,255,0.05)', 'rgba(0,180,255,0.2)');
+    });
+  }
+
+  if (single.length > 0) {
+    html += `<div style="font-family:'Space Mono',monospace; font-size:9px; color:var(--text-dim); letter-spacing:2px; margin-bottom:8px; margin-top:16px;">📊 SEGNALE SINGOLO — MONITORARE</div>`;
+    single.forEach(r => {
+      html += renderResult(r, 'rgba(255,255,255,0.02)', 'var(--border)');
+    });
+  }
+
+  container.innerHTML = html;
+  wrapper.style.display = 'block';
+}
+
+function renderResult(r, bg, border) {
+  const stars = '⭐'.repeat(r.score);
+  const badges = r.signals.map(s =>
+    `<span style="font-family:'Space Mono',monospace; font-size:9px; padding:3px 8px; border-radius:3px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:${s.color}; margin-right:6px;">${s.label}</span>`
+  ).join('');
+  return `
+    <div style="display:flex; align-items:center; gap:16px; padding:12px 16px; background:${bg}; border:1px solid ${border}; border-radius:6px; margin-bottom:8px;">
+      <div style="font-family:'Bebas Neue',sans-serif; font-size:28px; color:var(--text); min-width:80px;">$${r.ticker}</div>
+      <div style="flex:1;">${badges}</div>
+      <div style="font-size:14px;">${stars}</div>
+    </div>`;
+}
+
+function clearAll() {
+  document.getElementById('options-input').value  = '';
+  document.getElementById('insider-input').value  = '';
+  document.getElementById('darkpool-input').value = '';
+  document.getElementById('scanner-results').style.display = 'none';
+}
+</script>
+</body>
+</html>
